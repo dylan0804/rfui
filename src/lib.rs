@@ -20,11 +20,11 @@ pub fn search(pattern: &str) -> Result<(), Box<dyn std::error::Error>> {
                             .to_lowercase();
 
                         if filename.contains(&pattern) {
-                            let orig_path = entry.path().to_string_lossy();
-
-                            let parent = entry.path().parent().unwrap_or_else(|| {
-                                std::path::Path::new("")
-                            }).to_str().unwrap();
+                            let orig_path = entry.path().to_string_lossy().to_string();
+                            let parent = entry.path().parent()
+                                .unwrap_or_else(|| std::path::Path::new(""))
+                                .to_string_lossy()
+                                .to_string();
                             
                             let highlighted = orig_path.replace(&parent, &parent.truecolor(100, 149, 237).to_string());
 
