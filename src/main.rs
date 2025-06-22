@@ -1,17 +1,12 @@
-use std::time::SystemTime;
-
+use std::error::Error;
 use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long)]
-    file: String
-}
+use rfd::args::Args;
 
 fn main() {
     let args = Args::parse();
-
-    let start = SystemTime::now();
-    let _ = rfd::search(&args.file.to_lowercase());
+    
+    rfd::search(&args).unwrap_or_else(|e: Box<dyn Error + 'static>| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1)
+    })
 }
