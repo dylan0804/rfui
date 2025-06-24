@@ -64,15 +64,6 @@ pub enum Type {
     File
 }
 
-// impl std::fmt::Display for Type {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         self.to_possible_value()
-//             .expect("no values are skipped")
-//             .get_name()
-//             .fmt(f)
-//     }
-// }
-
 fn is_valid_directory(path: &Path) -> Result<()> {
     if file_system::is_existing_dir(path) {
         Ok(())

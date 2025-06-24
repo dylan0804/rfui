@@ -3,14 +3,13 @@ use std::num::NonZeroUsize;
 use crate::args::{Args, Type};
 
 pub struct Config {
-    // pub pattern: String,
+    pub pattern: String,
     pub kind: Option<Type>,
     pub show_hidden: bool,
     pub max_depth: Option<usize>,
     // pub count_enabled: bool,
     pub case_sensitive: bool,
     pub threads: usize,
-    pub prune: bool,
 }
 
 impl Config {
@@ -21,12 +20,11 @@ impl Config {
         let threads = args.threads.unwrap_or_else(num_of_threads).get();
         
         Self {
-            // pattern: args.pattern,
+            pattern: args.pattern,
             kind: args.kind,
             show_hidden: args.show_hidden,
             max_depth: args.max_depth,
             // count_enabled: args.count_enabled,
-            prune: true,
             case_sensitive,
             threads,
         }

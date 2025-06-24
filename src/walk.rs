@@ -1,4 +1,5 @@
 use std::env;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::{path::PathBuf};
 use anyhow::{Result};
@@ -21,7 +22,7 @@ impl Walker {
         }
     }
 
-    pub fn build(&self, paths: &Vec<PathBuf>, regexp: Regex) -> Result<WalkParallel> {
+    pub fn build(&self, paths: &Vec<PathBuf>) -> Result<WalkParallel> {
         let first_path = &paths[0];
         let config = &self.config;
 
@@ -43,7 +44,7 @@ impl Walker {
     }
 
     pub fn scan(&self, paths: Vec<PathBuf>, regexp: Regex) -> Result<()> {
-        let walker = self.build(&paths, regexp.clone())?;
+        let walker = self.build(&paths)?;
         let regexp = &regexp;
         let config: &Config = &self.config;
 
@@ -59,20 +60,15 @@ impl Walker {
                         return WalkState::Continue
                     };
 
-                    let full_path = entry.path().to_string_lossy();
-
-                    if !regexp.is_match(&full_path.as_bytes()) { 
+                    if !regexp.is_match(entry.file_name().as_bytes()) { 
                         return WalkState::Continue
                     }
                     
+                    let full_path = entry.path().to_string_lossy();
                     let relative_path = get_relative_path(&full_path)
                         .unwrap_or_else(|| full_path.to_string());
 
                     print_highlighted_match(&relative_path, &regexp);
-
-                    if entry.file_type().map_or(false, |ft| ft.is_dir()) {
-                        return WalkState::Skip;
-                    }
                 }
                 WalkState::Continue
             })
