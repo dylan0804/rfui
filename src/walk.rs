@@ -1,77 +1,106 @@
-use std::{env, path::PathBuf, sync::atomic::{AtomicU32, Ordering}};
-use ignore::{WalkBuilder, DirEntry};
+use std::path::Path;
+use std::{path::PathBuf};
+use anyhow::{Context, Result};
+use ignore::{DirEntry, WalkBuilder, WalkParallel};
+use ignore::WalkState;
 use colored::*;
+use regex::bytes::Regex;
 
-use crate::args::{Args, Type};
+use crate::args::{Type};
+use crate::config::Config;
 
 pub struct Walker {
-    pattern: String,
-    kind: Type,
-    show_hidden: bool,
-    max_depth: Option<usize>,
-    count_enabled: bool
+    config: Config
 }
 
 impl Walker {
-    pub fn new(args: Args) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
-            pattern: args.pattern, 
-            kind: args.kind,
-            show_hidden: args.show_hidden,
-            max_depth: args.max_depth,
-            count_enabled: args.count_enabled
+            config
         }
     }
 
-    pub fn scan(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let pattern = &self.pattern;
-        let kind = &self.kind;
-        
-        let count = if self.count_enabled {
-            Some(AtomicU32::new(0))
-        } else {
-            None
-        };
-        let count_ref = count.as_ref();
-    
-        WalkBuilder::new(get_home_dir()?)
-            .hidden(!self.show_hidden)
-            .max_depth(self.max_depth)
-            .build_parallel()
-            .run(|| {
-                Box::new(move |entry| {
-                    if let Ok(entry) = entry {
-                        if should_process_entry(&entry, kind) {
-                            let search_text = get_search_text(&entry, kind);
-                            if search_text.contains(pattern) {
-                                if let Some(counter) = count_ref {
-                                    counter.fetch_add(1, Ordering::Relaxed);
-                                }
-                                if !self.count_enabled {
-                                    print_highlighted_match(&entry, &pattern);
-                                }
-                            }
-                        }
-                    }
-                    ignore::WalkState::Continue
-                })
-            });
-        
-        if let Some(counter) = count {
-            println!("{}", counter.load(Ordering::Relaxed));
+    pub fn build(&self, paths: &Vec<PathBuf>) -> Result<WalkParallel> {
+        let first_path = &paths[0];
+        let config = &self.config;
+
+        println!("trh {}", config.threads);
+
+        let mut builder = WalkBuilder::new(first_path);
+        builder
+            .hidden(!config.show_hidden)
+            .max_depth(config.max_depth)
+            .ignore_case_insensitive(config.case_sensitive)
+            .threads(config.threads);
+            
+            // add more config here later on if needed
+
+        for path in &paths[1..] {
+            builder.add(path);
         }
+
+        let walker = builder.build_parallel();
+
+        Ok(walker)
+    }
+
+    pub fn scan(&self, paths: Vec<PathBuf>, regexp: Regex) -> Result<()> {
+        let walker = self.build(&paths)?;
+        let config = &self.config;
+        let regexp = &regexp;
+        let search_paths = &paths;
+
+        walker.run(|| {
+            Box::new(move |entry| {
+                if let Ok(entry) = entry {
+                    // check if current entry is the kind we want or not
+                    if !should_process_entry(&entry, &config.kind) {
+                        return WalkState::Continue
+                    };
+
+                    let full_path = entry.path().to_string_lossy();
+
+                    if !regexp.is_match(&full_path.as_bytes()) { 
+                        return WalkState::Continue
+                    }
+
+                    let relative_path =  match get_relative_path(&full_path, &search_paths) {
+                        Some(rel) => rel,
+                        None => full_path.to_string()
+                    };
+
+                    print_highlighted_match(&relative_path, &regexp);
+
+                    if config.prune {
+                        return WalkState::Skip;
+                    }
+                }
+                WalkState::Continue
+            })
+        });
+
         Ok(())
     }
 }
 
-fn get_home_dir() -> Result<PathBuf, &'static str> {
-    env::home_dir().ok_or_else(|| "Could not find home directory")
+fn get_relative_path(path: &str, search_paths: &Vec<PathBuf>) -> Option<String> {
+    let path = Path::new(path);
+      search_paths
+          .iter()
+          .find_map(|search_path| {
+              path.strip_prefix(search_path)
+                  .ok()
+                  .map(|p| p.to_string_lossy().to_string())
+          })
 }
 
-fn print_highlighted_match(entry: &DirEntry, pattern: &str) {
-    let path_str = entry.path().to_string_lossy();
-    let highlighted = path_str.replace(pattern, &pattern.bright_yellow().to_string());
-    println!("{}", highlighted);
+fn print_highlighted_match(entry: &str, regexp: &Regex) {
+    let highlighted = regexp.replace_all(entry.as_bytes(), |caps: &regex::bytes::Captures| {
+        let matched = String::from_utf8_lossy(&caps[0]);
+        matched.bright_yellow().bold().to_string()
+    });
+    let result = String::from_utf8_lossy(&highlighted);
+    println!("{}", result);
 }
 
 fn should_process_entry(entry: &DirEntry, kind: &Type) -> bool {
@@ -82,17 +111,5 @@ fn should_process_entry(entry: &DirEntry, kind: &Type) -> bool {
         }
     } else {
         false
-    }
-}
-
-fn get_search_text(entry: &DirEntry, kind: &Type) -> String {
-    match kind {
-        Type::File => entry.path()
-            .file_name()
-            .map(|n| n.to_string_lossy().to_lowercase())
-            .unwrap_or_default(),
-        Type::Directory => entry.path()
-            .to_string_lossy()
-            .to_lowercase(),
     }
 }
