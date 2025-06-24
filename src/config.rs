@@ -4,7 +4,7 @@ use crate::args::{Args, Type};
 
 pub struct Config {
     // pub pattern: String,
-    pub kind: Type,
+    pub kind: Option<Type>,
     pub show_hidden: bool,
     pub max_depth: Option<usize>,
     // pub count_enabled: bool,

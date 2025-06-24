@@ -24,10 +24,9 @@ pub struct Args {
     #[arg(
         short = 'k', 
         long = "kind", 
-        default_value_t = Type::File,
         help = "Filter by type: file (f/file) or directory (d/dir)",
     )]
-    pub kind: Type,
+    pub kind: Option<Type>,
 
     #[arg(
         short = 'H', 
@@ -65,14 +64,14 @@ pub enum Type {
     File
 }
 
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.to_possible_value()
-            .expect("no values are skipped")
-            .get_name()
-            .fmt(f)
-    }
-}
+// impl std::fmt::Display for Type {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         self.to_possible_value()
+//             .expect("no values are skipped")
+//             .get_name()
+//             .fmt(f)
+//     }
+// }
 
 fn is_valid_directory(path: &Path) -> Result<()> {
     if file_system::is_existing_dir(path) {

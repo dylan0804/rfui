@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use normpath::PathExt;
 
 pub fn is_existing_dir(path: &Path) -> bool {

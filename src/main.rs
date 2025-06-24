@@ -3,6 +3,8 @@ mod config;
 mod args;
 mod file_system;
 
+use std::env;
+
 use anyhow::{anyhow, Result};
 use clap::{Parser};
 use args::Args;
