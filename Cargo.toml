@@ -10,4 +10,6 @@ colored = "2.0"
 normpath = "1.3.0"
 anyhow = "1.0.98"
 regex = "1.11.1"
-
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+fuzzy-matcher = "*"

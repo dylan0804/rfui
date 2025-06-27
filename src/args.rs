@@ -1,13 +1,12 @@
-use std::{num::NonZeroUsize, path::{Path, PathBuf}, vec};
+use std::{env, num::NonZeroUsize, path::{Path, PathBuf}, vec};
 
 use anyhow::{anyhow, Ok, Result};
-use clap::{ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Parser};
 
-use crate::file_system;
+use crate::file_system::{self};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-
 pub struct Args {
     #[arg(
         help = "Pattern to search"
@@ -44,7 +43,7 @@ pub struct Args {
 
     #[arg(
         short = 's',
-        long
+        long = "case-sensitive"
     )]
     pub case_sensitive: bool,
 
@@ -53,6 +52,19 @@ pub struct Args {
         long,
     )]
     pub threads: Option<NonZeroUsize>,
+
+    #[arg(
+        short = 'm',
+        long = "max-results",
+    )]
+    pub max_results: Option<usize>,
+
+    #[arg(
+        short = 'j',
+        long = "json",
+        help = "Output results in JSON format"
+    )]
+    pub json: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -87,23 +99,30 @@ impl Args {
         let paths = if !self.path.is_empty() {
             &self.path
         } else {
-            let current_dir = Path::new("./");
-            is_valid_directory(current_dir)?;
-            return Ok(vec![normalize_path(current_dir)])
+            let current_dir = env::current_dir()?;
+            is_valid_directory(&current_dir)?;
+            return Ok(vec![normalize_path(&current_dir)])
         };
 
         Ok(paths
             .iter()
             .filter_map(|path| {
                 if file_system::is_existing_dir(path) {
-                    let mut path_str = String::from(path.to_str()?);
-                    path_str.push_str("/");
-                    Some(PathBuf::from(path_str))
+                    Some(normalize_path(path))
                 } else {
                     eprintln!("Path {:?} is not a valid directory", path);
                     None
                 }
             }).collect()
         )
+    }
+
+    pub fn parse_input_args(input: &str) -> Result<Args, clap::Error>{
+        let args = input.split_whitespace().collect::<Vec<&str>>();
+    
+        let mut full_args = vec!["rfd"];
+        full_args.extend(args);    
+    
+        Args::try_parse_from(full_args)
     }
 }
