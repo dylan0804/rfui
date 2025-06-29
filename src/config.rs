@@ -2,6 +2,7 @@ use std::{num::NonZeroUsize, sync::atomic::AtomicUsize};
 
 use crate::args::{Args, Type};
 
+#[derive(Debug)]
 pub struct Config {
     pub kind: Option<Type>,
     pub show_hidden: bool,

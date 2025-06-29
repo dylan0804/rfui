@@ -1,50 +1,58 @@
 use anyhow::{Result};
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
 use ratatui::{
-    buffer::Buffer,
-    layout::{Constraint, Layout, Position, Rect},
-    style::Stylize,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Widget},
+    layout::{Constraint, Layout, Rect},
     DefaultTerminal, Frame,
 };
-use std::{sync::mpsc::Receiver, time::{Duration, Instant}};
+use std::{sync::{mpsc::{Receiver, Sender}}, thread, time::{Duration, Instant}};
 
-use crate::{args::Args, input::{Input, InputMode}};
+use crate::{args::{self}, input::{Input, InputMode}, results::Results};
 
 const TICK_RATE: Duration = Duration::from_millis(16);
+const TAB_COUNT: u8 = 2;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     Event(CrosstermEvent),
     SearchResult(String),
-    SearchError(String),
+    // SearchError(String),
 
     SearchComplete,
     Tick,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FocusedTab {
+    Input,
+    List
+}
+
 pub struct App {
-    pub receiver: Receiver<AppEvent>,
-    pub results: Vec<String>,
-    pub vertical_scroll: usize,
-    pub vertical_scroll_state: ScrollbarState,
-    pub animation_start: Instant,
-    pub input: Input
+    tab_index: u8,
+    sender: Sender<AppEvent>,
+    receiver: Receiver<AppEvent>,
+
+    focused_tab: FocusedTab,
+    animation_start: Instant,
+    input: Input,
+    results: Results
 }
 
 impl App {
-    pub fn new(receiver: Receiver<AppEvent>) -> Self {
-        Self {
-            vertical_scroll: 0,
-            results: vec![],
-            receiver,
-            vertical_scroll_state: ScrollbarState::new(0),
-            animation_start: Instant::now(),
+    pub fn new(channel: (Sender<AppEvent>, Receiver<AppEvent>)) -> Self {      
+        let results = Results::new();
 
-            input: Input::default()
+        Self {
+            tab_index: 0,
+
+            sender: channel.0,
+            receiver: channel.1,
+
+            focused_tab: FocusedTab::Input,
+            animation_start: Instant::now(),
+            input: Input::default(),
+
+            results
         }
     }
 
@@ -58,7 +66,7 @@ impl App {
             while let Ok(result) = self.receiver.try_recv() {
                 match result {
                     AppEvent::SearchResult(search_result) => {
-                        self.results.push(search_result);
+                        self.results.matcher.push(search_result);
                     }
                     AppEvent::SearchComplete => {
                         self.input.mode = InputMode::Enabled;
@@ -79,63 +87,18 @@ impl App {
                 }
             }
 
-            self.update_scrollbar_length();
+            self.results.matcher.tick();
+            self.results.select_first();
             terminal.draw(|frame| self.draw(frame))?;
         }
         Ok(())
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let title = Line::from(" RFD ".bold());
-
-        let status_msg = match self.input.mode {
-            InputMode::Disabled => {
-                let dots = match (self.animation_start.elapsed().as_millis() / 500) % 3 {
-                    0 => ".",
-                    1 => "..",
-                    _ => "..."
-                };
-                format!(" Scanning files{} ", dots)
-            }, 
-            InputMode::Enabled => format!(" {} files found - Start typing to filter ", self.results.len())
-        };
-
-        let block = Block::bordered()
-            .title(title.centered())
-            .title_bottom(status_msg);
+        let (results_area, input_area) = self.get_area_layouts(frame);
         
-        let list = self.compute_list();
-
-        let paragraph = Paragraph::new(list)
-            .block(block)
-            .scroll((self.vertical_scroll as u16, 0));
-
-        let chunks = Layout::vertical([
-            Constraint::Percentage(90), // search results
-            Constraint::Percentage(10)  // input text
-        ])
-        .split(frame.area());
-
-        frame.render_widget(paragraph, chunks[0]);
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            chunks[0],
-            &mut self.vertical_scroll_state,
-        );
-
-        if self.input.mode == InputMode::Enabled {
-            let input = Paragraph::new(Line::from(self.input.text.as_str()))
-                .block(Block::bordered().title(" Input ").padding(Padding::horizontal(1)));
-            frame.render_widget(input, chunks[1]);
-
-            #[allow(clippy::cast_possible_truncation)]
-            frame.set_cursor_position(Position::new(
-                chunks[1].x + self.input.char_index as u16 + 2,
-                chunks[1].y + 1,
-            ));
-        }
+        self.results.render_list(frame, results_area, &self.input, &self.focused_tab, &self.animation_start);
+        self.input.render_input(frame, input_area, &self.focused_tab);
     }
 
     pub fn read_with_timeout(&self, timeout: Duration) -> Result<Option<AppEvent>> {
@@ -150,40 +113,47 @@ impl App {
         match key_event {
             CrosstermEvent::Key(event) => {
                 match event.code {
-                    // true for quitting, else false
+                    // true to quitting, else false
                     KeyCode::Esc => true,
                     KeyCode::Down => {
-                        self.vertical_scroll = self.vertical_scroll.saturating_add(3);
-                        self.vertical_scroll_state = 
-                            self.vertical_scroll_state.position(self.vertical_scroll);
+                        self.results.list_state.select_next();
                         false
                     },
                     KeyCode::Up => {
-                        self.vertical_scroll = self.vertical_scroll.saturating_sub(3);
-                        self.vertical_scroll_state =
-                            self.vertical_scroll_state.position(self.vertical_scroll);
+                        self.results.list_state.select_previous();
                         false
                     },
                     KeyCode::Enter => {
                         if self.input.mode == InputMode::Enabled && !self.input.text.trim().is_empty() {
-                            match Args::parse_input_args(&self.input.text) {
+                            self.start_search();
+                            match args::parse_input_args(&self.input.text) {
                                 Ok(args) => {
-
+                                    let sender = self.sender.clone();
+                                    thread::spawn(move || {
+                                        args::build_and_scan(args, sender);
+                                    }); 
                                 },
                                 Err(e) => {
                                     eprintln!("Error when parsing: {}", e)
                                 },
                             }
+                            self.input.clear_input();
                         }
                         false
                     }
-                    KeyCode::Char(incoming_char) 
-                        if self.input.mode == InputMode::Enabled => {
-                            self.input.update_input(incoming_char);
-                            false
-                        },
+                    KeyCode::Char(incoming_char) if self.focused_tab == FocusedTab::Input => {
+                        self.results.move_to_top();
+                        self.input.update_input(incoming_char);
+                        self.results.matcher.find_fuzzy_match(&self.input.text);
+                        false
+                    }
                     KeyCode::Backspace => {
                         self.input.delete_char();
+                        self.results.matcher.find_fuzzy_match(&self.input.text);
+                        false
+                    }
+                    KeyCode::Tab => {
+                        self.change_tab();
                         false
                     }
                     _ => false
@@ -193,16 +163,27 @@ impl App {
         }
     }
 
-    fn compute_list(&self) -> Vec<Line> {
-        self.results
-            .iter()
-            .map(|r| {
-                Line::from(r.clone())
-            })
-            .collect::<Vec<Line>>()
+    fn get_area_layouts(&self, frame: &Frame) -> (Rect, Rect) {
+        let chunks = Layout::vertical([
+            Constraint::Fill(1), // search results
+            Constraint::Max(3) // input box
+        ])
+        .split(frame.area());
+        
+        (chunks[0], chunks[1])
     }
 
-    fn update_scrollbar_length(&mut self) {
-        self.vertical_scroll_state = self.vertical_scroll_state.content_length(self.results.len());
+    fn start_search(&mut self) {
+        self.results.matcher.restart();
+        self.results.matcher.find_fuzzy_match("");
+    }
+
+    fn change_tab(&mut self) {
+        let selected_tab = self.tab_index % TAB_COUNT;
+        match selected_tab {
+            0 => self.focused_tab = FocusedTab::List,
+            _ => self.focused_tab = FocusedTab::Input
+        };
+        self.tab_index += 1;
     }
 }

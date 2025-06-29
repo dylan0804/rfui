@@ -1,3 +1,7 @@
+use ratatui::{layout::{Position, Rect}, style::{Color, Style, Stylize}, text::Line, widgets::{Block, BorderType, Padding, Paragraph}, Frame};
+
+use crate::tui::FocusedTab;
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum InputMode {
     #[default]
@@ -13,6 +17,31 @@ pub struct Input {
 }
 
 impl Input {
+    pub fn render_input(&self , frame: &mut Frame, input_area: Rect, focused_tab: &FocusedTab) {
+        let input = Paragraph::new(Line::from(self.text.as_str()))
+            .block(
+                Block::bordered()
+                    .title(" Search ")
+                    .title_style(Style::default().fg(Color::Green).bold())
+                    .border_style(Style::default().fg(Color::Green))
+                    .border_type(
+                        match focused_tab {
+                            FocusedTab::List => BorderType::Rounded,
+                            FocusedTab::Input => BorderType::Thick
+                        }
+                    )
+                    .padding(Padding::horizontal(1))
+            );
+            frame.render_widget(input, input_area);
+
+            if matches!(focused_tab, FocusedTab::Input) {
+                frame.set_cursor_position(Position::new(
+                    input_area.x + self.char_index as u16 + 2,
+                    input_area.y + 1,
+                ));
+            }
+    }
+
     pub fn move_cursor_left(&mut self) {
         let new_cursor_pos = self.char_index.saturating_sub(1);
         self.char_index = self.clamp_cursor(new_cursor_pos);
@@ -48,5 +77,10 @@ impl Input {
             self.text = chars.into_iter().collect();
             self.move_cursor_left();
         }
+    }
+
+    pub fn clear_input(&mut self) {
+        self.char_index = 0;
+        self.text.clear();
     }
 }

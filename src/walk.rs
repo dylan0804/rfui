@@ -1,18 +1,15 @@
-use std::borrow::Cow;
-use std::os::unix::ffi::OsStrExt;
 use std::sync::mpsc::Sender;
 use std::{path::PathBuf};
-use std::sync::atomic::{Ordering};
-use anyhow::{Context, Result, Error};
+use anyhow::{Result};
 use std::result::Result::Ok;
 use ignore::{DirEntry, WalkBuilder, WalkParallel};
 use ignore::WalkState;
-use colored::*;
+// use colored::*;
 use regex::bytes::Regex;
 
 use crate::args::{Type};
 use crate::config::Config;
-use crate::file_system::get_relative_path;
+use crate::file_system::{self};
 use crate::tui::AppEvent;
 
 pub struct Walker {
@@ -71,48 +68,34 @@ impl Walker {
                         return WalkState::Continue
                     };
 
-                    if !regexp.is_match(entry.file_name().as_bytes()) { 
+                    if !regexp.is_match(&file_system::osstr_to_bytes(entry.file_name())) { 
                         return WalkState::Continue
                     }
-
-                    let current_count = config.total_results.fetch_add(1, Ordering::Relaxed);
-                    if let Some(max_results) = config.max_results {
-                        if current_count >= max_results {
-                            return WalkState::Quit;
-                        };
-                    };
                     
                     let full_path = entry.path();
-                    let relative_path = get_relative_path(full_path)
+                    let relative_path = file_system::get_relative_path(full_path)
                         .unwrap_or_else(|| full_path.to_string_lossy().to_string());
                 
                     tx_clone.send(AppEvent::SearchResult(relative_path)).unwrap();
-
-
-                    // let highlighted_match = highlight_match(&relative_path, &regexp)
-                    //     .map_or_else(|_| relative_path, |h| h);
-
-                    // tx_clone.send(highlighted_match).unwrap();
                 }
                 WalkState::Continue
             })
         });
 
-        // notify receiving end
         tx.send(AppEvent::SearchComplete).unwrap();
 
         Ok(())
     }
 }
 
-fn highlight_match(relative_path: &str, regexp: &Regex) -> Result<String> {
-    let highlighted = regexp.replace_all(relative_path.as_bytes(), |caps: &regex::bytes::Captures| {
-        let matched = String::from_utf8_lossy(&caps[0]);
-        matched.bright_yellow().bold().to_string()
-    });
+// fn highlight_match(relative_path: &str, regexp: &Regex) -> Result<String> {
+//     let highlighted = regexp.replace_all(relative_path.as_bytes(), |caps: &regex::bytes::Captures| {
+//         let matched = String::from_utf8_lossy(&caps[0]);
+//         matched.bright_yellow().bold().to_string()
+//     });
 
-    Ok(String::from_utf8(highlighted.to_vec())?)
-}
+//     Ok(String::from_utf8(highlighted.to_vec())?)
+// }
 
 fn should_process_entry(entry: &DirEntry, kind: &Option<Type>) -> bool {
     if let Some(file_type) = entry.file_type() {

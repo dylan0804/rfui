@@ -1,9 +1,10 @@
-use std::{env, num::NonZeroUsize, path::{Path, PathBuf}, vec};
+use std::{env, num::NonZeroUsize, path::{Path, PathBuf}, sync::mpsc::Sender, vec};
 
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser};
+use regex::bytes::RegexBuilder;
 
-use crate::file_system::{self};
+use crate::{config::Config, file_system::{self}, tui::AppEvent, walk::Walker};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -94,35 +95,68 @@ fn normalize_path(path: &Path) -> PathBuf {
     }
 }
 
-impl Args {
-    pub fn get_search_paths(&self) -> Result<Vec<PathBuf>> {
-        let paths = if !self.path.is_empty() {
-            &self.path
-        } else {
-            let current_dir = env::current_dir()?;
-            is_valid_directory(&current_dir)?;
-            return Ok(vec![normalize_path(&current_dir)])
-        };
+fn get_search_paths(path: &Vec<PathBuf>) -> Result<Vec<PathBuf>> {
+    let paths = if !path.is_empty() {
+        path
+    } else {
+        let current_dir = env::current_dir()?;
+        is_valid_directory(&current_dir)?;
+        return Ok(vec![normalize_path(&current_dir)])
+    };
 
-        Ok(paths
-            .iter()
-            .filter_map(|path| {
-                if file_system::is_existing_dir(path) {
-                    Some(normalize_path(path))
-                } else {
-                    eprintln!("Path {:?} is not a valid directory", path);
-                    None
-                }
-            }).collect()
-        )
-    }
+    Ok(paths
+        .iter()
+        .filter_map(|path| {
+            if file_system::is_existing_dir(path) {
+                Some(normalize_path(path))
+            } else {
+                eprintln!("Path {:?} is not a valid directory", path);
+                None
+            }
+        }).collect()
+    )
+}
 
-    pub fn parse_input_args(input: &str) -> Result<Args, clap::Error>{
-        let args = input.split_whitespace().collect::<Vec<&str>>();
+pub fn parse_input_args(input: &str) -> Result<Args, clap::Error> {
+    let args = input.split_whitespace().collect::<Vec<&str>>();
+
+    let mut full_args = vec!["rfd"];
+    full_args.extend(args);    
+
+    Args::try_parse_from(full_args)
+}
+
+pub fn build_and_scan(args: Args, tx: Sender<AppEvent>) {
+    let search_paths = match get_search_paths(&args.path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error getting search paths: {}", e);
+            std::process::exit(1)
+        }
+    };
+
+    let regexp = match regex_builder(&args) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error building regex: {}", e);
+            std::process::exit(1)
+        }
+    };
+
+    let config = Config::build(args);
+    let walker = Walker::new(config);
     
-        let mut full_args = vec!["rfd"];
-        full_args.extend(args);    
-    
-        Args::try_parse_from(full_args)
-    }
+    walker.scan(search_paths, regexp, tx).unwrap_or_else(|e| {
+        eprintln!("Error when starting scan: {}", e);
+    });
+}
+
+fn regex_builder(args: &Args) -> Result<regex::bytes::Regex> {
+    RegexBuilder::new(&args.pattern)
+        .case_insensitive(!&args.case_sensitive)
+        .dot_matches_new_line(true)
+        .build()
+        .map_err(|e| {
+            anyhow!("{}", e)
+        })
 }
