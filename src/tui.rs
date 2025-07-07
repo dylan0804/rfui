@@ -8,6 +8,9 @@ use std::{rc::Rc, sync::{mpsc::{Receiver, Sender}}, thread, time::Duration};
 
 use crate::{action::Action, args::{self}, exit_codes::ExitCode, input::Input, keypress::{self, Config}, preview::{Preview}, results::Results};
 
+#[cfg(target_os = "macos")]
+use cli_clipboard::macos_clipboard::MacOSClipboardContext;
+
 #[cfg(target_os = "windows")]
 use cli_clipboard::windows_clipboard::WindowsClipboardContext;
 
@@ -42,7 +45,6 @@ pub struct App {
 
 #[cfg(target_os = "macos")]
 fn create_clipboard_context() -> Result<ClipboardContext> {
-    use cli_clipboard::macos_clipboard::MacOSClipboardContext;
     ClipboardProvider::new()
         .map_err(|e| anyhow!("{}", e))
 }

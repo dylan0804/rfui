@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use serde::{de::{self, MapAccess, Visitor}, Deserialize, Deserializer};
 
 use crate::{action::Action, input::Input};
@@ -92,8 +92,10 @@ pub fn handle_keypress_with_config(
 ) -> Action {
     if let CrosstermEvent::Key(event) = key_event {
         // check config first
-        if let Some(action) = config.keymap.0.get(&event) {
-            return action.clone();
+        if event.kind == KeyEventKind::Press {
+            if let Some(action) = config.keymap.0.get(&event) {
+                return action.clone();
+            }
         }
     }
     
