@@ -34,7 +34,6 @@ fn main() {
 
 fn run() -> Result<ExitCode> {
     let config = load_config()?;
-    println!("here2");
 
     let channel = mpsc::channel::<AppEvent>();
     let mut terminal = ratatui::init();
