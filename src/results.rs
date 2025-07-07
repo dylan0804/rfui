@@ -23,7 +23,7 @@ pub struct Results {
 impl Results {
     pub fn new() -> Self {
         Self {
-            title: String::from(" RFD "),
+            title: String::from(" RFUI "),
             matcher: Matcher::new(),
             list_state: ListState::default(),
             animation_start: Instant::now(),

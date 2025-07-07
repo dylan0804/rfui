@@ -117,7 +117,7 @@ pub fn expand_tilde(path: String) -> String {
 pub fn parse_input_args(input: &str) -> Result<Args, clap::Error> {
     let args = input.split_whitespace().collect::<Vec<&str>>();
 
-    let mut full_args = vec!["rfd"];
+    let mut full_args = vec!["rfui"];
     full_args.extend(args);
 
     Args::try_parse_from(full_args)

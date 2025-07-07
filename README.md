@@ -11,14 +11,14 @@ Built with Rust using nucleo for fuzzy matching, ignore for fast traversal, bat 
 ## Installation
 
 ```bash
-cargo install rfd
+cargo install rfui
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/dylanchristiandihalim/rfd
-cd rfd
+git clone https://github.com/dylanchristiandihalim/rfui
+cd rfui
 cargo install --path .
 ```
 
@@ -27,7 +27,7 @@ Requires Rust and bat for syntax highlighting.
 ## Usage
 
 ```bash
-rfd
+rfui
 ```
 
 Type search patterns in the interface:
