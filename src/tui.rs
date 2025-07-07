@@ -1,6 +1,4 @@
 use anyhow::{anyhow, Result};
-use cli_clipboard::macos_clipboard::MacOSClipboardContext;
-#[cfg(unix)]
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{self, Event as CrosstermEvent};
 use ratatui::{
@@ -9,6 +7,9 @@ use ratatui::{
 use std::{rc::Rc, sync::{mpsc::{Receiver, Sender}}, thread, time::Duration};
 
 use crate::{action::Action, args::{self}, exit_codes::ExitCode, input::Input, keypress::{self, Config}, preview::{Preview}, results::Results};
+
+#[cfg(target_os = "windows")]
+use cli_clipboard::windows_clipboard::WindowsClipboardContext;
 
 const TICK_RATE: Duration = Duration::from_millis(60);
 
@@ -41,6 +42,7 @@ pub struct App {
 
 #[cfg(target_os = "macos")]
 fn create_clipboard_context() -> Result<ClipboardContext> {
+    use cli_clipboard::macos_clipboard::MacOSClipboardContext;
     ClipboardProvider::new()
         .map_err(|e| anyhow!("{}", e))
 }
@@ -58,7 +60,7 @@ impl App {
     ) -> Result<App> {        
 
         let clipboard_ctx = create_clipboard_context()?;
-        
+
         Ok(
             Self {
                 last_app_event: None,
