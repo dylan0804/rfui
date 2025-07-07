@@ -49,12 +49,6 @@ pub struct Args {
 
     #[arg(short = 't', long)]
     pub threads: Option<NonZeroUsize>,
-
-    #[arg(short = 'm', long = "max-results")]
-    pub max_results: Option<usize>,
-
-    #[arg(short = 'j', long = "json", help = "Output results in JSON format")]
-    pub json: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
