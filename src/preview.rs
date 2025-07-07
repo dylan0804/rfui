@@ -27,7 +27,9 @@ impl PreviewContent {
 
         let line_count = content.lines().count();
 
-        let parsed_text = content.into_text()
+        let parsed_text = content
+            .replace("\r\n", "\n") // classic windows
+            .into_text()
             .unwrap_or_else(|e| Text::from(format!("Parse error: {}", e)));
 
         Self { parsed_text, line_count }

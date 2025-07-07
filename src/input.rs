@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use ratatui::{layout::{Position, Rect}, style::{Color, Style, Stylize}, text::{Line, Text}, widgets::{Block, BorderType, Padding, Paragraph, Wrap}, Frame};
 
-const INPUT_PLACEHOLDER: &str = "pattern [flags] • /help";
+const INPUT_PLACEHOLDER: &str = " pattern [flags] • /help";
 
 #[derive(Debug, Default)]
 pub struct Input {
@@ -32,13 +32,10 @@ impl Input {
             );  
 
         frame.render_widget(input, input_area[0]);
-        
-        if !is_empty {
-            frame.set_cursor_position(Position::new(
-                input_area[0].x + self.char_index as u16 + 2,
-                input_area[0].y + 1,
-            ));
-        }
+        frame.set_cursor_position(Position::new(
+            input_area[0].x + self.char_index as u16 + 2,
+            input_area[0].y + 1,
+        ));
 
         if !self.error_message.is_empty() {
             let error_text = Text::from(format!("⚠ {}", self.error_message))

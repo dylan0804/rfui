@@ -91,11 +91,13 @@ pub fn handle_keypress_with_config(
     config: &Config
 ) -> Action {
     if let CrosstermEvent::Key(event) = key_event {
-        // check config first
-        if event.kind == KeyEventKind::Press {
-            if let Some(action) = config.keymap.0.get(&event) {
-                return action.clone();
-            }
+        // windows detects key press and release for some reason
+        if event.kind == KeyEventKind::Release {
+            return Action::None;
+        }
+        
+        if let Some(action) = config.keymap.0.get(&event) {
+            return action.clone();
         }
     }
     

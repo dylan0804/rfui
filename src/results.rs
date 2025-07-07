@@ -34,7 +34,7 @@ impl Results {
                 };
                 format!(" Scanning files{} ", dots)
             }, 
-            AppEvent::SearchComplete => format!(" {} files found • ↑↓ navigate • Enter opens • Esc exits ", self.matcher.get_matched_items_count()),
+            AppEvent::SearchComplete => format!(" {} files found • ↑↓ navigate • Esc exits ", self.matcher.get_matched_items_count()),
             _ => "".to_string()
         }
     }
