@@ -1,0 +1,19 @@
+# Navigation
+"up" = "SelectPrevious"
+"down" = "SelectNext"
+"left" = "MoveCursorLeft"
+"right" = "MoveCursorRight"
+
+# Preview scrolling
+"ctrl+j" = "ScrollPreviewDown"
+"ctrl+k" = "ScrollPreviewUp"
+"ctrl+l" = "ScrollPreviewRight"
+"ctrl+h" = "ScrollPreviewLeft"
+"ctrl+u" = "IncreasePreview"
+"ctrl+d" = "DecreasePreview"
+"ctrl+y" = "CopyToClipboard"
+
+# Search and input
+"enter" = "Search"
+"backspace" = "Backspace"
+"esc" = "Quit"

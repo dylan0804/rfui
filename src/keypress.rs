@@ -11,7 +11,7 @@ use crate::{action::Action, input::Input};
 #[derive(Clone, Debug, Default)]
 pub struct KeyMap(pub HashMap<KeyEvent, Action>);
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub keymap: KeyMap,
