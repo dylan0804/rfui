@@ -108,7 +108,6 @@ pub fn handle_keypress_with_config(
         }
 
         if let Some(action) = config.keymap.0.get(&event) {
-            println!("action is {:?}", action);
             return action.clone();
         }
     }
