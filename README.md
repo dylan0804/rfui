@@ -42,7 +42,6 @@ Type search patterns in the interface:
 -H, --hidden             Include hidden files
 -s, --case-sensitive     Case sensitive search  
 -t, --threads <NUM>      Number of search threads
--m, --max-results <NUM>  Maximum results
 ```
 
 ## Key bindings
