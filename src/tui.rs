@@ -1,10 +1,12 @@
-use anyhow::{anyhow, Error, Result};
-use cli_clipboard::{macos_clipboard::MacOSClipboardContext, ClipboardContext, ClipboardProvider};
+use anyhow::{anyhow, Result};
+use cli_clipboard::macos_clipboard::MacOSClipboardContext;
+#[cfg(unix)]
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{self, Event as CrosstermEvent};
 use ratatui::{
     layout::{Constraint, Layout, Rect}, style::{Color, Style, Stylize}, text::Line, widgets::{Block, BorderType, Paragraph, Wrap}, DefaultTerminal, Frame
 };
-use std::{rc::Rc, sync::{mpsc::{Receiver, Sender}, LazyLock}, thread, time::Duration};
+use std::{rc::Rc, sync::{mpsc::{Receiver, Sender}}, thread, time::Duration};
 
 use crate::{action::Action, args::{self}, exit_codes::ExitCode, input::Input, keypress::{self, Config}, preview::{Preview}, results::Results};
 
@@ -28,8 +30,25 @@ pub struct App {
     config: Config,
     is_help_screen: bool,
     preview_width: u16,
+    pub input: Input,
+
+    #[cfg(target_os = "macos")]
     clipboard_ctx: MacOSClipboardContext,
-    pub input: Input
+  
+    #[cfg(target_os = "windows")]
+    clipboard_ctx: WindowsClipboardContext,
+}
+
+#[cfg(target_os = "macos")]
+fn create_clipboard_context() -> Result<ClipboardContext> {
+    ClipboardProvider::new()
+        .map_err(|e| anyhow!("{}", e))
+}
+
+#[cfg(target_os = "windows")]
+fn create_clipboard_context() -> Result<ClipboardContext> {
+    ClipboardProvider::new()
+        .map_err(|e| anyhow!("{}", e))
 }
 
 impl App {
@@ -37,8 +56,8 @@ impl App {
         (sender, receiver): (Sender<AppEvent>, Receiver<AppEvent>),
         config: Config
     ) -> Result<App> {        
-        let clipboard_ctx = ClipboardContext::new()
-            .map_err(|e| anyhow!("Failed to create clipboard context: {}", e))?;
+
+        let clipboard_ctx = create_clipboard_context()?;
         
         Ok(
             Self {
