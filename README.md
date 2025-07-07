@@ -64,20 +64,6 @@ Other:
   /help                 Show help screen
 ```
 
-## Configuration
-
-Create a `config.toml` file to customize key bindings:
-
-```toml
-"up" = "SelectPrevious"
-"down" = "SelectNext"
-"ctrl+j" = "ScrollPreviewDown"
-"ctrl+k" = "ScrollPreviewUp"
-"ctrl+y" = "CopyToClipboard"
-"enter" = "Search"
-"esc" = "Quit"
-```
-
 ## Implementation
 
 Built with ratatui for the terminal interface, nucleo for fuzzy matching, ignore for fast directory traversal, and bat for syntax highlighting. Uses crossterm for cross-platform terminal handling.
