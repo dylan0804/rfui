@@ -1,7 +1,6 @@
-use std::{collections::HashMap, ops::Index, sync::Arc};
+use std::{sync::Arc};
 
-use colored::Colorize;
-use nucleo::{pattern::{CaseMatching, Normalization}, Config, Nucleo, Status};
+use nucleo::{pattern::{CaseMatching, Normalization}, Config, Item, Nucleo, Status};
 use ratatui::{style::{Color, Style, Stylize}, text::{Line, Span}};
 
 const MATCHER_TICK_RATE: u64 = 2;
@@ -33,20 +32,20 @@ impl Matcher {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.get_item(0).iter().count() == 0
+    }
+
+    pub fn get_item(&self, index: usize) -> Option<Item<String>> {
+        self.inner.snapshot().get_matched_item(index as u32)
+    }
+
     pub fn get_matched_items_count(&self) -> u32 {
         self.inner.snapshot().matched_item_count()
     }
 
-    pub fn get_total_item_count(&self) -> u32 {
-        self.inner.snapshot().item_count()
-    }
-
     pub fn tick(&mut self) {
         self.status = self.inner.tick(MATCHER_TICK_RATE);
-    }
-
-    pub fn changed(&mut self) -> bool {
-        self.status.changed
     }
 
     pub fn restart(&mut self) {
@@ -59,18 +58,16 @@ impl Matcher {
         });
     }
 
-    pub fn get_results(&mut self, entries: u32, pattern: &str) -> Vec<Line> {
+    pub fn get_results(&mut self, pattern: &str, width: u16) -> Vec<Line> {
         let snapshot = self.inner.snapshot();
         let matched_item_count = self.get_matched_items_count();
         
-        snapshot.matched_items(
-            0..(entries).min(matched_item_count)
-        )
+        snapshot.matched_items(0..500.min(matched_item_count))
             .map(|item| {
-                // println!("data {}", item.data);
-                self.highlight_fuzzy_match(item.data, pattern)
+                let truncated_text = truncate_text(item.data.to_string(), width);
+                self.highlight_fuzzy_match(&truncated_text, pattern)
             })
-            .collect()
+            .collect::<Vec<_>>()
     }
 
     pub fn find_fuzzy_match(&mut self, current_pattern: &str) {
@@ -124,4 +121,25 @@ impl Matcher {
 
         Line::from(spans)
     }
+}
+
+fn truncate_text(text: String, width: u16) -> String {
+    if text.len() < width as usize{
+        return text
+    }
+
+    let available_chars = width.saturating_sub(9) as usize;
+    let front = available_chars / 2;
+    let back = available_chars - front;
+
+    let chars: Vec<char> = text.chars().collect();
+    let total_len = chars.len();
+
+    let first_half = &chars[..front];
+    let second_half = &chars[total_len - back..];
+    
+    format!("{}...{}", 
+        first_half.iter().collect::<String>(),
+        second_half.iter().collect::<String>()
+    )
 }

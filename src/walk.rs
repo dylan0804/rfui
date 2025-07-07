@@ -1,14 +1,14 @@
 use std::sync::mpsc::Sender;
 use std::{path::PathBuf};
-use anyhow::{Result};
+use anyhow::{anyhow, Result};
 use std::result::Result::Ok;
 use ignore::{DirEntry, WalkBuilder, WalkParallel};
 use ignore::WalkState;
-// use colored::*;
 use regex::bytes::Regex;
 
 use crate::args::{Type};
 use crate::config::Config;
+use crate::exit_codes::ExitCode;
 use crate::file_system::{self};
 use crate::tui::AppEvent;
 
@@ -24,6 +24,10 @@ impl Walker {
     }
 
     pub fn build(&self, paths: &Vec<PathBuf>) -> Result<WalkParallel> {
+        if paths.is_empty() {
+            return Err(anyhow!("No paths provided for search"))
+        }
+
         let first_path = &paths[0];
         let config = &self.config;
 
@@ -51,7 +55,7 @@ impl Walker {
         paths: Vec<PathBuf>, 
         regexp: Regex, 
         tx: Sender<AppEvent>
-    ) -> Result<()> {
+    ) -> Result<ExitCode> {
         let walker: WalkParallel = self.build(&paths)?;
         let regexp = &regexp;
         let config: &Config = &self.config;
@@ -84,7 +88,7 @@ impl Walker {
 
         tx.send(AppEvent::SearchComplete).unwrap();
 
-        Ok(())
+        Ok(ExitCode::Success)
     }
 }
 

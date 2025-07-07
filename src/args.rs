@@ -1,13 +1,13 @@
 use std::{env, num::NonZeroUsize, path::{Path, PathBuf}, sync::mpsc::Sender, vec};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{ArgAction, Parser};
 use regex::bytes::RegexBuilder;
 
-use crate::{config::Config, file_system::{self}, tui::AppEvent, walk::Walker};
+use crate::{config::Config, exit_codes::ExitCode, file_system::{self}, tui::AppEvent, walk::Walker};
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, disable_help_flag = true)]
 pub struct Args {
     #[arg(
         help = "Pattern to search"
@@ -107,14 +107,29 @@ fn get_search_paths(path: &Vec<PathBuf>) -> Result<Vec<PathBuf>> {
     Ok(paths
         .iter()
         .filter_map(|path| {
+            let expanded_path = expand_tilde(path.to_string_lossy().to_string());
+            let path = Path::new(&expanded_path).as_ref();
+
             if file_system::is_existing_dir(path) {
                 Some(normalize_path(path))
             } else {
-                eprintln!("Path {:?} is not a valid directory", path);
                 None
             }
-        }).collect()
+        })
+        .collect()
     )
+}
+
+pub fn expand_tilde(path: String) -> String {
+    if path.starts_with("~") {
+        if let Ok(home) = env::var("HOME") {
+            path.replacen("~", &home, 1)
+        } else {
+            path.to_string()
+        }
+    } else {
+        path.to_string()
+    }
 }
 
 pub fn parse_input_args(input: &str) -> Result<Args, clap::Error> {
@@ -126,29 +141,17 @@ pub fn parse_input_args(input: &str) -> Result<Args, clap::Error> {
     Args::try_parse_from(full_args)
 }
 
-pub fn build_and_scan(args: Args, tx: Sender<AppEvent>) {
-    let search_paths = match get_search_paths(&args.path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Error getting search paths: {}", e);
-            std::process::exit(1)
-        }
-    };
+pub fn build_and_scan(args: Args, tx: Sender<AppEvent>) -> Result<ExitCode> {
+    let search_paths = get_search_paths(&args.path)
+        .with_context(|| "Failed to get search paths")?;
 
-    let regexp = match regex_builder(&args) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Error building regex: {}", e);
-            std::process::exit(1)
-        }
-    };
+    let regexp = regex_builder(&args)
+        .with_context(|| "Failed building regex pattern")?;
 
     let config = Config::build(args);
     let walker = Walker::new(config);
     
-    walker.scan(search_paths, regexp, tx).unwrap_or_else(|e| {
-        eprintln!("Error when starting scan: {}", e);
-    });
+    walker.scan(search_paths, regexp, tx)
 }
 
 fn regex_builder(args: &Args) -> Result<regex::bytes::Regex> {

@@ -1,45 +1,54 @@
-use ratatui::{layout::{Position, Rect}, style::{Color, Style, Stylize}, text::Line, widgets::{Block, BorderType, Padding, Paragraph}, Frame};
+use std::rc::Rc;
 
-use crate::tui::FocusedTab;
+use ratatui::{layout::{Position, Rect}, style::{Color, Style, Stylize}, text::{Line, Text}, widgets::{Block, BorderType, Padding, Paragraph, Wrap}, Frame};
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub enum InputMode {
-    #[default]
-    Enabled,
-    Disabled
-}
+const INPUT_PLACEHOLDER: &str = "pattern [flags] • /help";
 
 #[derive(Debug, Default)]
 pub struct Input {
     pub text: String,
-    pub mode: InputMode,
     pub char_index: usize,
+    pub error_message: String
 }
 
 impl Input {
-    pub fn render_input(&self , frame: &mut Frame, input_area: Rect, focused_tab: &FocusedTab) {
-        let input = Paragraph::new(Line::from(self.text.as_str()))
+    pub fn render_input(&self , frame: &mut Frame, input_area: Rc<[Rect]>) {
+        let is_empty = self.text.is_empty();
+        let (display_text, text_color) = if is_empty {
+            (INPUT_PLACEHOLDER, Color::DarkGray)
+        } else {
+            (self.text.as_str(), Color::White)
+        };
+
+        let input = Paragraph::new(Line::from(display_text))
+            .fg(text_color)
             .block(
                 Block::bordered()
                     .title(" Search ")
                     .title_style(Style::default().fg(Color::Green).bold())
                     .border_style(Style::default().fg(Color::Green))
-                    .border_type(
-                        match focused_tab {
-                            FocusedTab::List => BorderType::Rounded,
-                            FocusedTab::Input => BorderType::Thick
-                        }
-                    )
+                    .border_type(BorderType::Rounded)
                     .padding(Padding::horizontal(1))
-            );
-            frame.render_widget(input, input_area);
+            );  
 
-            if matches!(focused_tab, FocusedTab::Input) {
-                frame.set_cursor_position(Position::new(
-                    input_area.x + self.char_index as u16 + 2,
-                    input_area.y + 1,
-                ));
-            }
+        frame.render_widget(input, input_area[0]);
+        
+        if !is_empty {
+            frame.set_cursor_position(Position::new(
+                input_area[0].x + self.char_index as u16 + 2,
+                input_area[0].y + 1,
+            ));
+        }
+
+        if !self.error_message.is_empty() {
+            let error_text = Text::from(format!("⚠ {}", self.error_message))
+                .style(Style::default().fg(Color::Red));
+                
+            let error_widget = Paragraph::new(error_text)
+                .wrap(Wrap { trim: true });
+
+            frame.render_widget(error_widget, input_area[1]);
+        }
     }
 
     pub fn move_cursor_left(&mut self) {
@@ -82,5 +91,14 @@ impl Input {
     pub fn clear_input(&mut self) {
         self.char_index = 0;
         self.text.clear();
+        self.clear_error();
+    }
+
+    pub fn clear_error(&mut self) {
+        self.error_message.clear();
+    }
+
+    pub fn set_error(&mut self, message: String) {
+        self.error_message = message;
     }
 }
