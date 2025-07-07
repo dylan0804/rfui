@@ -45,7 +45,8 @@ fn run() -> Result<ExitCode> {
 }
 
 fn load_config() -> Result<Config> {
-    let config_content = fs::read_to_string("config.toml").context("Error reading config.toml")?;
-
-    toml::from_str(&config_content).context("Error parsing config.toml")
+    match fs::read_to_string("config.toml") {
+        Ok(config_content) => toml::from_str(&config_content).context("Error parsing config.toml"),
+        Err(_) => Ok(Config::default()),
+    }
 }
