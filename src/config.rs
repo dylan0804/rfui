@@ -1,5 +1,5 @@
-use std::{num::NonZeroUsize};
 use crate::args::{Args, Type};
+use std::num::NonZeroUsize;
 
 #[derive(Debug)]
 pub struct Config {
@@ -12,8 +12,7 @@ pub struct Config {
 
 impl Config {
     pub fn build(args: Args) -> Self {
-        let case_sensitive = args.case_sensitive ||
-            has_uppercase_char(&args.pattern);
+        let case_sensitive = args.case_sensitive || has_uppercase_char(&args.pattern);
         let threads = args.threads.unwrap_or_else(num_of_threads).get();
 
         Self {
@@ -27,8 +26,7 @@ impl Config {
 }
 
 fn num_of_threads() -> NonZeroUsize {
-    std::thread::available_parallelism()
-        .unwrap_or(NonZeroUsize::MIN)
+    std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN)
 }
 
 fn has_uppercase_char(pattern: &str) -> bool {

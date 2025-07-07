@@ -1,7 +1,17 @@
 [package]
 name = "rfd"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "A fast, interactive file finder with live preview built in Rust"
+authors = ["Dylan Christian Dihalim"]
+license = "MIT"
+repository = "https://github.com/dylanchristiandihalim/rfd"
+homepage = "https://github.com/dylanchristiandihalim/rfd"
+documentation = "https://github.com/dylanchristiandihalim/rfd"
+readme = "README.md"
+keywords = ["file", "finder", "search", "tui", "preview"]
+categories = ["command-line-utilities", "filesystem"]
+exclude = ["screenshots/", ".github/"]
 
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }

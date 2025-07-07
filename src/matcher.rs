@@ -1,34 +1,35 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
-use nucleo::{pattern::{CaseMatching, Normalization}, Config, Item, Nucleo, Status};
-use ratatui::{style::{Color, Style, Stylize}, text::{Line, Span}};
+use nucleo::{
+    Config, Item, Nucleo, Status,
+    pattern::{CaseMatching, Normalization},
+};
+use ratatui::{
+    style::{Color, Style, Stylize},
+    text::{Line, Span},
+};
 
 const MATCHER_TICK_RATE: u64 = 2;
 
 pub struct Matcher {
     inner: Nucleo<String>,
     last_pattern: String,
-    status: Status
+    status: Status,
 }
 
 impl Matcher {
     pub fn new() -> Self {
-        let matcher: Nucleo<String> = Nucleo::new(
-            Config::DEFAULT, 
-            Arc::new(|| {}), 
-            None, 
-            1
-        );
+        let matcher: Nucleo<String> = Nucleo::new(Config::DEFAULT, Arc::new(|| {}), None, 1);
 
         let status = Status {
             changed: false,
-            running: false
+            running: false,
         };
-        
+
         Self {
             inner: matcher,
             last_pattern: String::new(),
-            status
+            status,
         }
     }
 
@@ -61,8 +62,9 @@ impl Matcher {
     pub fn get_results(&mut self, pattern: &str, width: u16) -> Vec<Line> {
         let snapshot = self.inner.snapshot();
         let matched_item_count = self.get_matched_items_count();
-        
-        snapshot.matched_items(0..500.min(matched_item_count))
+
+        snapshot
+            .matched_items(0..500.min(matched_item_count))
             .map(|item| {
                 let truncated_text = truncate_text(item.data.to_string(), width);
                 self.highlight_fuzzy_match(&truncated_text, pattern)
@@ -98,17 +100,18 @@ impl Matcher {
                 break;
             }
 
-            if ch.to_lowercase().eq(pattern_chars[pattern_index].to_lowercase()) {
+            if ch
+                .to_lowercase()
+                .eq(pattern_chars[pattern_index].to_lowercase())
+            {
                 if pos > last_pos {
                     spans.push(Span::raw(text[last_pos..pos].to_string()));
                 }
 
-                spans.push(
-                    Span::styled(
-                        ch.to_string(), 
-                        Style::default().fg(Color::Yellow).bold()
-                    )
-                );
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(Color::Yellow).bold(),
+                ));
 
                 pattern_index += 1;
                 last_pos = pos + ch.len_utf8(); // ascii safe
@@ -124,8 +127,8 @@ impl Matcher {
 }
 
 fn truncate_text(text: String, width: u16) -> String {
-    if text.len() < width as usize{
-        return text
+    if text.len() < width as usize {
+        return text;
     }
 
     let available_chars = width.saturating_sub(9) as usize;
@@ -137,8 +140,9 @@ fn truncate_text(text: String, width: u16) -> String {
 
     let first_half = &chars[..front];
     let second_half = &chars[total_len - back..];
-    
-    format!("{}...{}", 
+
+    format!(
+        "{}...{}",
         first_half.iter().collect::<String>(),
         second_half.iter().collect::<String>()
     )

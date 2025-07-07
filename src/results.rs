@@ -1,9 +1,15 @@
 use std::time::Instant;
 
 use nucleo::Item;
-use ratatui::{layout::Rect, style::{Color, Style, Stylize}, text::Line, widgets::{Block, BorderType, List, ListState, Padding}, Frame};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    style::{Color, Style, Stylize},
+    text::Line,
+    widgets::{Block, BorderType, List, ListState, Padding},
+};
 
-use crate::{input::{Input}, matcher::Matcher, tui::{AppEvent}};
+use crate::{input::Input, matcher::Matcher, tui::AppEvent};
 
 const POINTER_SYMBOL: &str = "> ";
 
@@ -20,7 +26,7 @@ impl Results {
             title: String::from(" RFD "),
             matcher: Matcher::new(),
             list_state: ListState::default(),
-            animation_start: Instant::now()
+            animation_start: Instant::now(),
         }
     }
 
@@ -30,16 +36,25 @@ impl Results {
                 let dots = match (self.animation_start.elapsed().as_millis() / 500) % 3 {
                     0 => ".",
                     1 => "..",
-                    _ => "..."
+                    _ => "...",
                 };
                 format!(" Scanning files{} ", dots)
-            }, 
-            AppEvent::SearchComplete => format!(" {} files found • ↑↓ navigate • Esc exits ", self.matcher.get_matched_items_count()),
-            _ => "".to_string()
+            }
+            AppEvent::SearchComplete => format!(
+                " {} files found • ↑↓ navigate • Esc exits ",
+                self.matcher.get_matched_items_count()
+            ),
+            _ => "".to_string(),
         }
     }
 
-    pub fn render_list(&mut self, frame: &mut Frame, results_area: Rect, input: &Input, app_event: &AppEvent) {
+    pub fn render_list(
+        &mut self,
+        frame: &mut Frame,
+        results_area: Rect,
+        input: &Input,
+        app_event: &AppEvent,
+    ) {
         let title = Line::from(self.title.as_str()).bold();
 
         let results_block = Block::bordered()
@@ -48,7 +63,7 @@ impl Results {
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(Color::Cyan))
             .padding(Padding::horizontal(1));
-        
+
         let results = self.matcher.get_results(&input.text, results_area.width);
         let results_list = List::new(results)
             .block(results_block)
@@ -75,5 +90,4 @@ impl Results {
     pub fn move_to_top(&mut self) {
         self.list_state.select_first();
     }
-
 }

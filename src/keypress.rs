@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use serde::{de::{self, MapAccess, Visitor}, Deserialize, Deserializer};
+use serde::{
+    Deserialize, Deserializer,
+    de::{self, MapAccess, Visitor},
+};
 
 use crate::{action::Action, input::Input};
 
@@ -15,29 +18,31 @@ pub struct Config {
 }
 
 impl<'de> Deserialize<'de> for KeyMap {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> 
-        where D: Deserializer<'de>,
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
     {
-      struct KeyMapVisitor;
-      impl<'de> Visitor<'de> for KeyMapVisitor {
-        type Value = KeyMap;
+        struct KeyMapVisitor;
+        impl<'de> Visitor<'de> for KeyMapVisitor {
+            type Value = KeyMap;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("a map of key bindings")
-        }
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a map of key bindings")
+            }
 
-        fn visit_map<M>(self, mut access: M) -> Result<KeyMap, M::Error>
-            where M: MapAccess<'de>,
-        {
-          let mut keymap = HashMap::new();
-          while let Some((key_str, action)) = access.next_entry::<String, Action>()? {
-            let key_event = parse_key_event(&key_str).map_err(de::Error::custom)?;
-            keymap.insert(key_event, action);
-          }
-          Ok(KeyMap(keymap))
+            fn visit_map<M>(self, mut access: M) -> Result<KeyMap, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut keymap = HashMap::new();
+                while let Some((key_str, action)) = access.next_entry::<String, Action>()? {
+                    let key_event = parse_key_event(&key_str).map_err(de::Error::custom)?;
+                    keymap.insert(key_event, action);
+                }
+                Ok(KeyMap(keymap))
+            }
         }
-      }
-      deserializer.deserialize_map(KeyMapVisitor)
+        deserializer.deserialize_map(KeyMapVisitor)
     }
 }
 
@@ -54,7 +59,7 @@ fn extract_modifiers(raw: &str) -> (&str, KeyModifiers) {
     if let Some(stripped) = remaining.strip_prefix("ctrl+") {
         modifiers.insert(KeyModifiers::CONTROL);
         remaining = stripped;
-    } 
+    }
     if let Some(stripped) = remaining.strip_prefix("shift+") {
         modifiers.insert(KeyModifiers::SUPER);
         remaining = stripped;
@@ -86,40 +91,38 @@ fn parse_key_code_with_modifiers(raw: &str, modifiers: KeyModifiers) -> Result<K
 }
 
 pub fn handle_keypress_with_config(
-    input: &mut Input,   
+    input: &mut Input,
     key_event: CrosstermEvent,
-    config: &Config
+    config: &Config,
 ) -> Action {
     if let CrosstermEvent::Key(event) = key_event {
         // windows detects key press and release for some reason
         if event.kind == KeyEventKind::Release {
             return Action::None;
         }
-        
+
         if let Some(action) = config.keymap.0.get(&event) {
             return action.clone();
         }
     }
-    
+
     // fallback to default keypress event for unhandled key events
     handle_keypress(input, key_event)
 }
 
 pub fn handle_keypress(input: &mut Input, key_event: CrosstermEvent) -> Action {
     match key_event {
-        CrosstermEvent::Key(event) => {
-            match event.code {
-                KeyCode::Char(incoming_char) => {
-                    input.update_input(incoming_char);
-                    Action::Filter
-                }
-                KeyCode::Backspace => {
-                    input.delete_char();
-                    Action::Filter
-                }
-                _ => Action::None
+        CrosstermEvent::Key(event) => match event.code {
+            KeyCode::Char(incoming_char) => {
+                input.update_input(incoming_char);
+                Action::Filter
             }
+            KeyCode::Backspace => {
+                input.delete_char();
+                Action::Filter
+            }
+            _ => Action::None,
         },
-        _ => Action::None
+        _ => Action::None,
     }
 }

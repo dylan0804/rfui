@@ -1,6 +1,12 @@
 use std::rc::Rc;
 
-use ratatui::{layout::{Position, Rect}, style::{Color, Style, Stylize}, text::{Line, Text}, widgets::{Block, BorderType, Padding, Paragraph, Wrap}, Frame};
+use ratatui::{
+    Frame,
+    layout::{Position, Rect},
+    style::{Color, Style, Stylize},
+    text::{Line, Text},
+    widgets::{Block, BorderType, Padding, Paragraph, Wrap},
+};
 
 const INPUT_PLACEHOLDER: &str = " pattern [flags] • /help";
 
@@ -8,11 +14,11 @@ const INPUT_PLACEHOLDER: &str = " pattern [flags] • /help";
 pub struct Input {
     pub text: String,
     pub char_index: usize,
-    pub error_message: String
+    pub error_message: String,
 }
 
 impl Input {
-    pub fn render_input(&self , frame: &mut Frame, input_area: Rc<[Rect]>) {
+    pub fn render_input(&self, frame: &mut Frame, input_area: Rc<[Rect]>) {
         let is_empty = self.text.is_empty();
         let (display_text, text_color) = if is_empty {
             (INPUT_PLACEHOLDER, Color::DarkGray)
@@ -28,8 +34,8 @@ impl Input {
                     .title_style(Style::default().fg(Color::Green).bold())
                     .border_style(Style::default().fg(Color::Green))
                     .border_type(BorderType::Rounded)
-                    .padding(Padding::horizontal(1))
-            );  
+                    .padding(Padding::horizontal(1)),
+            );
 
         frame.render_widget(input, input_area[0]);
         frame.set_cursor_position(Position::new(
@@ -40,9 +46,8 @@ impl Input {
         if !self.error_message.is_empty() {
             let error_text = Text::from(format!("⚠ {}", self.error_message))
                 .style(Style::default().fg(Color::Red));
-                
-            let error_widget = Paragraph::new(error_text)
-                .wrap(Wrap { trim: true });
+
+            let error_widget = Paragraph::new(error_text).wrap(Wrap { trim: true });
 
             frame.render_widget(error_widget, input_area[1]);
         }
@@ -75,7 +80,7 @@ impl Input {
         self.text.insert(index, incoming_char);
         self.move_cursor_right();
     }
-     
+
     pub fn delete_char(&mut self) {
         if self.char_index != 0 {
             let mut chars = self.text.chars().collect::<Vec<char>>();

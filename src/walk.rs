@@ -1,31 +1,29 @@
-use std::sync::mpsc::Sender;
-use std::{path::PathBuf};
-use anyhow::{anyhow, Result};
-use std::result::Result::Ok;
-use ignore::{DirEntry, WalkBuilder, WalkParallel};
+use anyhow::{Result, anyhow};
 use ignore::WalkState;
+use ignore::{DirEntry, WalkBuilder, WalkParallel};
 use regex::bytes::Regex;
+use std::path::PathBuf;
+use std::result::Result::Ok;
+use std::sync::mpsc::Sender;
 
-use crate::args::{Type};
+use crate::args::Type;
 use crate::config::Config;
 use crate::exit_codes::ExitCode;
 use crate::file_system::{self};
 use crate::tui::AppEvent;
 
 pub struct Walker {
-    config: Config
+    config: Config,
 }
 
 impl Walker {
     pub fn new(config: Config) -> Self {
-        Self {
-            config
-        }
+        Self { config }
     }
 
-    pub fn build(&self, paths: &Vec<PathBuf>) -> Result<WalkParallel> {
+    pub fn build(&self, paths: &[PathBuf]) -> Result<WalkParallel> {
         if paths.is_empty() {
-            return Err(anyhow!("No paths provided for search"))
+            return Err(anyhow!("No paths provided for search"));
         }
 
         let first_path = &paths[0];
@@ -39,8 +37,8 @@ impl Walker {
             .follow_links(false)
             .same_file_system(true)
             .threads(config.threads);
-            // add more config here later on if needed
-        
+        // add more config here later on if needed
+
         for path in &paths[1..] {
             builder.add(path);
         }
@@ -51,15 +49,15 @@ impl Walker {
     }
 
     pub fn scan(
-        &self, 
-        paths: Vec<PathBuf>, 
-        regexp: Regex, 
-        tx: Sender<AppEvent>
+        &self,
+        paths: Vec<PathBuf>,
+        regexp: Regex,
+        tx: Sender<AppEvent>,
     ) -> Result<ExitCode> {
         let walker: WalkParallel = self.build(&paths)?;
         let regexp = &regexp;
         let config: &Config = &self.config;
-        
+
         walker.run(|| {
             let tx_clone = tx.clone();
             Box::new(move |entry| {
@@ -69,18 +67,20 @@ impl Walker {
                     }
 
                     if !should_process_entry(&entry, &config.kind) {
-                        return WalkState::Continue
+                        return WalkState::Continue;
                     };
 
-                    if !regexp.is_match(&file_system::osstr_to_bytes(entry.file_name())) { 
-                        return WalkState::Continue
+                    if !regexp.is_match(&file_system::osstr_to_bytes(entry.file_name())) {
+                        return WalkState::Continue;
                     }
-                    
+
                     let full_path = entry.path();
                     let relative_path = file_system::get_relative_path(full_path)
                         .unwrap_or_else(|| full_path.to_string_lossy().to_string());
-                
-                    tx_clone.send(AppEvent::SearchResult(relative_path)).unwrap();
+
+                    tx_clone
+                        .send(AppEvent::SearchResult(relative_path))
+                        .unwrap();
                 }
                 WalkState::Continue
             })
@@ -104,13 +104,11 @@ impl Walker {
 fn should_process_entry(entry: &DirEntry, kind: &Option<Type>) -> bool {
     if let Some(file_type) = entry.file_type() {
         match kind {
-            Some(n) => {
-                match n {
-                    Type::File => file_type.is_file(),
-                    Type::Directory => file_type.is_dir(),
-                }
+            Some(n) => match n {
+                Type::File => file_type.is_file(),
+                Type::Directory => file_type.is_dir(),
             },
-            None => return true
+            None => true,
         }
     } else {
         false
