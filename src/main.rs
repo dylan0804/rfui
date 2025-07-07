@@ -11,7 +11,7 @@ mod results;
 mod tui;
 mod walk;
 
-use std::{fs, sync::mpsc};
+use std::{sync::mpsc};
 
 use anyhow::{Context, Result};
 
@@ -34,6 +34,7 @@ fn main() {
 
 fn run() -> Result<ExitCode> {
     let config = load_config()?;
+    println!("here2");
 
     let channel = mpsc::channel::<AppEvent>();
     let mut terminal = ratatui::init();
@@ -45,12 +46,6 @@ fn run() -> Result<ExitCode> {
 }
 
 fn load_config() -> Result<Config> {
-    match fs::read_to_string("config.toml") {
-        Ok(config_content) => toml::from_str(&config_content).context("Error parsing config.toml"),
-        Err(_) => {
-            // Use embedded default config
-            let default_config = include_str!("../default_config.toml");
-            toml::from_str(default_config).context("Error parsing default config")
-        }
-    }
+    let default_config = include_str!("../default_config.toml");
+    toml::from_str(&default_config).context("Error parsing config.toml")
 }

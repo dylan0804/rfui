@@ -1,6 +1,8 @@
+[keymap]
 # Navigation
-"up" = "SelectPrevious"
+"escape" = "Quit"
 "down" = "SelectNext"
+"up" = "SelectPrevious"
 "left" = "MoveCursorLeft"
 "right" = "MoveCursorRight"
 
@@ -16,4 +18,3 @@
 # Search and input
 "enter" = "Search"
 "backspace" = "Backspace"
-"esc" = "Quit"

@@ -1,4 +1,4 @@
-# rfd
+# rfui
 
 Terminal file finder with live preview.
 

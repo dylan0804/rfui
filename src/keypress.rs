@@ -8,8 +8,14 @@ use serde::{
 
 use crate::{action::Action, input::Input};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct KeyMap(pub HashMap<KeyEvent, Action>);
+
+impl Default for KeyMap {
+    fn default() -> Self {
+        Self(HashMap::new())
+    }
+}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -102,6 +108,7 @@ pub fn handle_keypress_with_config(
         }
 
         if let Some(action) = config.keymap.0.get(&event) {
+            println!("action is {:?}", action);
             return action.clone();
         }
     }
