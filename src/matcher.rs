@@ -45,6 +45,10 @@ impl Matcher {
         self.inner.snapshot().matched_item_count()
     }
 
+    pub fn get_total_items_count(&self) -> usize {
+        self.inner.snapshot().item_count() as usize
+    }
+
     pub fn tick(&mut self) {
         self.status = self.inner.tick(MATCHER_TICK_RATE);
     }
@@ -59,12 +63,12 @@ impl Matcher {
         });
     }
 
-    pub fn get_results(&mut self, pattern: &str, width: u16) -> Vec<Line> {
+    pub fn get_results(&mut self, pattern: &str, width: u16, offset: u32, height: u32) -> Vec<Line> {
         let snapshot = self.inner.snapshot();
         let matched_item_count = self.get_matched_items_count();
 
         snapshot
-            .matched_items(0..500.min(matched_item_count))
+            .matched_items(offset..(offset + height).min(matched_item_count))
             .map(|item| {
                 let truncated_text = truncate_text(item.data.to_string(), width);
                 self.highlight_fuzzy_match(&truncated_text, pattern)

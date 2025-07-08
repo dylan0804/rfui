@@ -169,11 +169,11 @@ impl App {
                 }
             }
             Action::SelectNext if !self.results.matcher.is_empty() => {
-                self.results.list_state.select_next();
+                self.results.select_next();
                 false
             }
             Action::SelectPrevious if !self.results.matcher.is_empty() => {
-                self.results.list_state.select_previous();
+                self.results.select_previous();
                 false
             }
             Action::ScrollPreviewUp => {
