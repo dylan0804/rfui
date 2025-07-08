@@ -42,7 +42,6 @@ Type search patterns in the interface:
 -H, --hidden             Include hidden files
 -s, --case-sensitive     Case sensitive search  
 -t, --threads <NUM>      Number of search threads
--m, --max-results <NUM>  Maximum results
 ```
 
 ## Key bindings
@@ -62,20 +61,6 @@ Preview:
 Other:
   Ctrl+Y                Copy file path to clipboard
   /help                 Show help screen
-```
-
-## Configuration
-
-Create a `config.toml` file to customize key bindings:
-
-```toml
-"up" = "SelectPrevious"
-"down" = "SelectNext"
-"ctrl+j" = "ScrollPreviewDown"
-"ctrl+k" = "ScrollPreviewUp"
-"ctrl+y" = "CopyToClipboard"
-"enter" = "Search"
-"esc" = "Quit"
 ```
 
 ## Implementation
