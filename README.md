@@ -17,7 +17,7 @@ cargo install rfui
 Or build from source:
 
 ```bash
-git clone https://github.com/dylanchristiandihalim/rfui
+git clone https://github.com/dylan0804/rfui
 cd rfui
 cargo install --path .
 ```
