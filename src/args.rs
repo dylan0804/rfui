@@ -2,7 +2,7 @@ use std::{
     env,
     num::NonZeroUsize,
     path::{Path, PathBuf},
-    sync::mpsc::Sender,
+    sync::{atomic::AtomicBool, mpsc::Sender, Arc},
     vec,
 };
 
@@ -123,7 +123,7 @@ pub fn parse_input_args(input: &str) -> Result<Args, clap::Error> {
     Args::try_parse_from(full_args)
 }
 
-pub fn build_and_scan(args: Args, tx: Sender<AppEvent>) -> Result<ExitCode> {
+pub fn build_and_scan(args: Args, tx: Sender<AppEvent>, should_stop_flag: Arc<AtomicBool>) -> Result<ExitCode> {
     let search_paths =
         get_search_paths(&args.path).with_context(|| "Failed to get search paths")?;
 
@@ -132,7 +132,7 @@ pub fn build_and_scan(args: Args, tx: Sender<AppEvent>) -> Result<ExitCode> {
     let config = Config::build(args);
     let walker = Walker::new(config);
 
-    walker.scan(search_paths, regexp, tx)
+    walker.scan(search_paths, regexp, tx, should_stop_flag)
 }
 
 fn regex_builder(args: &Args) -> Result<regex::bytes::Regex> {

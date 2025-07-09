@@ -4,7 +4,9 @@ use ignore::{DirEntry, WalkBuilder, WalkParallel};
 use regex::bytes::Regex;
 use std::path::PathBuf;
 use std::result::Result::Ok;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use crate::args::Type;
 use crate::config::Config;
@@ -53,15 +55,21 @@ impl Walker {
         paths: Vec<PathBuf>,
         regexp: Regex,
         tx: Sender<AppEvent>,
+        should_stop_flag: Arc<AtomicBool>
     ) -> Result<ExitCode> {
         let walker: WalkParallel = self.build(&paths)?;
         let regexp = &regexp;
         let config: &Config = &self.config;
+        let stop_flag = &should_stop_flag;
 
         walker.run(|| {
             let tx_clone = tx.clone();
             Box::new(move |entry| {
                 if let Ok(entry) = entry {
+                    if stop_flag.load(Ordering::Relaxed) {
+                        return WalkState::Quit;
+                    }
+
                     if entry.depth() == 0 {
                         return WalkState::Continue;
                     }

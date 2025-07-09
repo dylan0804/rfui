@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{self, Event as CrosstermEvent};
+use nucleo::pattern::Atom;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout, Rect},
@@ -10,7 +11,7 @@ use ratatui::{
 };
 use std::{
     rc::Rc,
-    sync::mpsc::{Receiver, Sender},
+    sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc},
     thread,
     time::Duration,
 };
@@ -31,7 +32,7 @@ use cli_clipboard::macos_clipboard::MacOSClipboardContext;
 #[cfg(target_os = "windows")]
 use cli_clipboard::windows_clipboard::WindowsClipboardContext;
 
-const TICK_RATE: Duration = Duration::from_millis(60);
+const TICK_RATE: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
@@ -51,6 +52,7 @@ pub struct App {
     config: Config,
     is_help_screen: bool,
     preview_width: u16,
+    stop_flag: Arc<AtomicBool>,
     pub input: Input,
 
     #[cfg(target_os = "macos")]
@@ -82,6 +84,7 @@ impl App {
             input: Input::default(),
             preview: Preview::new(),
             results: Results::new(),
+            stop_flag: Arc::new(AtomicBool::new(false)),
             is_help_screen: false,
             preview_width: 50,
             clipboard_ctx,
@@ -236,12 +239,14 @@ impl App {
     }
 
     fn handle_search(&mut self) {
-        self.start_search();
+        let stop_flag_clone = Arc::clone(&self.stop_flag);
+        self.start_search(&stop_flag_clone);
         let tx_clone: Sender<AppEvent> = self.sender.clone();
+
         match args::parse_input_args(&self.input.text) {
             Ok(args) => {
                 thread::spawn(move || {
-                    if let Err(scan_error) = args::build_and_scan(args, tx_clone.clone()) {
+                    if let Err(scan_error) = args::build_and_scan(args, tx_clone.clone(), stop_flag_clone) {
                         tx_clone
                             .send(AppEvent::Error(scan_error.to_string()))
                             .unwrap();
@@ -262,8 +267,11 @@ impl App {
         self.results.matcher.find_fuzzy_match(&self.input.text);
     }
 
-    fn start_search(&mut self) {
-        self.results.matcher.restart();
+    fn start_search(&mut self, should_stop_flag: &Arc<AtomicBool>) {
+        should_stop_flag.store(true, Ordering::Relaxed); // stop walker
+        std::thread::sleep(Duration::from_millis(10)); // give old thread time to stop
+        self.results.restart();
+        should_stop_flag.store(false, Ordering::Relaxed); // go again
         self.results.matcher.find_fuzzy_match("");
     }
 
@@ -278,7 +286,7 @@ impl App {
             Constraint::Max(input_height), // input box + error area
         ])
         .split(left_area);
-
+;
         (areas[0], areas[1])
     }
 

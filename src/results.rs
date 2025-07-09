@@ -97,7 +97,13 @@ impl Results {
     }
 
     pub fn move_to_top(&mut self) {
+        self.offset = 0;
         self.list_state.select_first();
+    }
+
+    pub fn restart(&mut self) {
+        self.offset = 0;
+        self.matcher.restart();
     }
 
     pub fn select_next(&mut self) {
