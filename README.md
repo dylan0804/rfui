@@ -8,6 +8,9 @@ Search through your filesystem interactively. Type patterns, get results instant
 
 Built with Rust using nucleo for fuzzy matching, ignore for fast traversal, bat for previews, and ratatui for the interface.
 
+## Demo
+![output](https://github.com/user-attachments/assets/8edab80d-2014-4799-81a7-c8c6ac351b53)
+
 ## Installation
 
 ```bash
